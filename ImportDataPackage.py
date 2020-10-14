@@ -38,12 +38,13 @@ MonthlyDat = [Emp_dat.drop(columns=['Date']),
 
 MAterm = 0 # turn on or off the errors in the observation equations (Var-Cov R) taking an MA specification. (eps_r = rho*eps_e(t-1)+eps)
 lags = 6 # state transition equation number of lags
-lagsH = 2 # Number of lags to use in observation equation (of the factors)
+lagsH = 1 # Number of lags to use in observation equation (of the factors)
 K = 3 # number of non GDP factors, (entries in monthlydat)
 Qs = 1 # number of GDP factors - Do not adjust number of GDP series - possibly this will be adapted in the future - only works with one for now.
-
+normGDP = 1 # estimate model with a normalized GDP series
 # Initialise the factor model
-DynamicFac = DF.DynamicFactorModel(GDP, MonthlyDat, Dates, K, Qs, lags, lagsH, MAterm)
+DynamicFac = DF.DynamicFactorModel(GDP, MonthlyDat, Dates, K, Qs, lags, lagsH, MAterm, normGDP)
+
 
 
 burn = 50 # Number of throw-away initial draws (In practice may burn 100 and save 1000, but will take longer)
@@ -52,7 +53,7 @@ DynamicFac.estimateGibbs(burn, save) # Estimate model using data to last quarter
 DynamicFac.Nowcast(2008, 2) # Year to start nowcasting, how many quarters to nowcast
 
 print('Plot quasi-out of sample month 2 nowcasts against data (these use full estimation sample to estimate parameters and previous quarter state)')
-DynamicFac.PlotFcast(2) # 
+DynamicFac.PlotFcast(2) # Plot forecast 
 
 np.set_printoptions(precision=3)
 

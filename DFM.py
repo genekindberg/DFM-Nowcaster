@@ -72,14 +72,12 @@ def _estVAR(Yinput,lags):
 
 
 def _setVARpriors(X,Y,lambda1, lambda3, lambda4, p, alpha0):
-    # Do proper bayes P is lags
     n = Y.shape[1]
     T = X.shape[0]
     k = X.shape[1] # includes all additional dummies
     m = k-n*p
     q=n*k; # coefficients to estimate in total 
     # Get variance estimate for each endogenous VAR
-    
     arvar = np.empty((n,1))
     arvar[:] = np.nan
     ar = np.empty((n,1))
@@ -90,7 +88,7 @@ def _setVARpriors(X,Y,lambda1, lambda3, lambda4, p, alpha0):
         Xtemp=X[:,ii:n*p:n]; # Get heterogenous constants in too
         # obtain the OLS estimator
         B= np.linalg.inv(Xtemp.T @ Xtemp) @ (Xtemp.T @ Ytemp)
-        ar[ii] = B[0] # 1st AR term for each
+        ar[ii] = B[0] # 1st AR term for each equation
         # obtain the vector of residuals
         eps=Ytemp - (Xtemp @ B)
         # obtain the variance of the series;
@@ -101,9 +99,6 @@ def _setVARpriors(X,Y,lambda1, lambda3, lambda4, p, alpha0):
     for ii in range(0,n,1):
         beta0[(ii)*k+ii]=ar[ii]
     
-    
-    # make beta  2d matrix
-    B0=np.reshape(beta0,(k,n), order="F")
     # variance cov of prior on beta
     phi0=np.zeros((k,k))
     
@@ -118,8 +113,7 @@ def _setVARpriors(X,Y,lambda1, lambda3, lambda4, p, alpha0):
     if k>n*p:
         m = k-n*p
         for ii in range(0,m,1):
-            phi0[k-m+ii,k-m+ii]=(lambda1*lambda4)^2;
-        end
+            phi0[k-m+ii,k-m+ii]=(lambda1*lambda4)^2      
     
     # variance priors
 
@@ -203,8 +197,6 @@ def _EstBVAR(Y,lags, phi0, alpha0, S0, beta0, draws):
                 raise Exception('VAR not stationary!')
         
         beta_gibbs[ii,:,:]=drawBeta    
-        Bcheck, Qcheck = _estVAR(Y,lags) 
-        Bcheck = Bcheck
     return sigma_gibbs, beta_gibbs
 
 
@@ -278,8 +270,8 @@ def _Ksmoother(F, H, Q, R, S, P, lags, n):
 
 def _RemoveOutliers(Data, SDs, Qs):
     for col in range(0,Data.shape[1]):
-        Data[(Data[:,col] - np.mean(Data[:,col])) > SDs * np.std(Data[:,col]), col] =  np.mean(Data[:,col])+SDs * np.std(Data[:,col])
-        Data[(Data[:,col] - np.mean(Data[:,col])) < -(SDs * np.std(Data[:,col])), col] =  np.mean(Data[:,col])-SDs * np.std(Data[:,col])
+        Data[(Data[:,col] - np.nanmean(Data[:,col])) > SDs * np.nanstd(Data[:,col]), col] =  np.nanmean(Data[:,col])+SDs * np.nanstd(Data[:,col])
+        Data[(Data[:,col] - np.nanmean(Data[:,col])) < -(SDs * np.nanstd(Data[:,col])), col] =  np.nanmean(Data[:,col])-SDs * np.nanstd(Data[:,col])
     return Data
 
 def _SampleFactorsSimple(S,Svar, K, Qs):
@@ -339,18 +331,11 @@ def _SampleLoadingsLags(S, XY, s0, alpha0, L_var_prior, lags, interv, Qs, K, lag
         else:
             s0=5
         R_bar = s0 +(ed.T @ ed)+Lf[n,:] @ np.linalg.inv(L_var_prior+np.linalg.inv(S.T @ S)) @ Lf[n,:].T # Assuming prior of zero, so no L          
-        # for scale
-
-        #T = ed.shape[0]
         Rd = np.random.normal(0,1,T+alpha0)
         Rd = Rd.T @ Rd
-#       RdChi2 = np.random.chisquare(T+alpha0)
         Rd = np.divide(R_bar,Rd)
-#       RdChi = np.divide(R_bar,RdChi2)
-
         R[n,n]=Rd
     H = Lf
- #   R[0,0] = 0.1
     return H, R, StoreE
 
 def _SampleLoadingsLagsPhi(S, XY, s0, alpha0, L_var_prior, lags, interv, Qs, K, lagsH, Phi):
@@ -406,7 +391,6 @@ def _SampleLoadingsLagsPhi(S, XY, s0, alpha0, L_var_prior, lags, interv, Qs, K, 
     Lf_con = np.c_[np.tile(np.c_[1/3, np.zeros((1,K))],(1,3)), np.tile(np.zeros((1,K+Qs)),(1,lags-3))]
     Lf = np.r_[Lf_con, np.c_[Lf, np.zeros((N-Qs,(lags-lagsH-1)*(K+Qs)))]] # -1 for MA term 
     Lfraw = np.r_[Lf_con, np.c_[Lfraw, np.zeros((N-Qs,(lags-lagsH)*(K+Qs)))]]
-#    Lfraw = np.r_[Lf_con, np.c_[Lfraw, np.zeros((N,(lags-lagsH-1)*(K+Qs)))]] # -1 for MA term 
     # Make bayesian draws of variance matrix for factor loading using 
     StoreE = np.empty([Y_phi.shape[0],Y_phi.shape[1]]) 
     R = np.zeros((XY.shape[1],XY.shape[1]))
@@ -423,16 +407,12 @@ def _SampleLoadingsLagsPhi(S, XY, s0, alpha0, L_var_prior, lags, interv, Qs, K, 
         R_bar = s02 +(ed.T @ ed)+Lf[n,:] @ np.linalg.inv(L_var_prior+np.linalg.inv(S.T @ S)) @ Lf[n,:].T # Assuming prior of zero, so no L          
         # for scale
 
-        #T = ed.shape[0]
         Rd = np.random.normal(0,1,T+alpha0)
         Rd = Rd.T @ Rd
-#       RdChi2 = np.random.chisquare(T+alpha0)
         Rd = np.divide(R_bar,Rd)
-#       RdChi = np.divide(R_bar,RdChi2)
 
         R[n,n]=Rd
     H = Lf
- #   R[0,0] = 0.1
     return H, R, StoreE
 
 def _SamplePhi(StoreE,R, Qs):
@@ -514,10 +494,8 @@ def initializevals(GDP, Monthly, lags, lagsH, K, Qs):
     Q = np.r_[Q, np.zeros(((K+1)*(lags-1),(K+1)*(lags)))] 
     F=np.r_[B[0:-1,0:].T, np.c_[np.eye((K+Qs)*(lags-1)), np.zeros(((K+Qs)*(lags-1),(K+Qs)))]]
 
-    # Initial values for state and transition matrices
 
-
-    # Datap for factor estimation - GDP every 3 months and monthly normalized data series
+    # Data for factor estimation - GDP every 3 months and monthly normalized data series
     XY = np.c_[GDPnan, Monthly_dat]
     S, P  = _Kfilter(XY, F, H, Q, R, F0lag)
     
@@ -525,7 +503,7 @@ def initializevals(GDP, Monthly, lags, lagsH, K, Qs):
 
     return XY, H, R, F, Q, S, ints
 
-def Gibbs_loop(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, Ints, burn, save):
+def Gibbs_loop(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, Ints, burn, save, GDPnorm):
     # XY: Monthly data
     # F: State transition initial
     # H: Loadings initial mat
@@ -540,7 +518,7 @@ def Gibbs_loop(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, In
     # alpha0: scale param on factor loading variance:
     # L_var_prior: tightness on coefficient in factor loading (zero is prior)
     # Ints: Restrictions for loading on factors - number that load onto each
-
+    # GDPnorm: Normalize GDP?
     # Create matrices to store results
     
     Hdraw = np.empty([H.shape[0],Q.shape[1],save]) 
@@ -561,7 +539,7 @@ def Gibbs_loop(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, In
     alpha0=1
     S_Y, S_X = _MakeLags(S[:,0:K+Qs], lags)
     phi0, alpha0, S0, beta0 = _setVARpriors(S_X,S_Y,lambda1, lambda3, lambda4, lags, alpha0)
-
+    keep = np.setdiff1d(np.arange(0,S.shape[1]), np.arange(0,S.shape[1],n))
     for ii in range(iter):
         if ii % 10==0:
             print('Completed ', str(ii/iter*100), "% of the loop")
@@ -572,9 +550,11 @@ def Gibbs_loop(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, In
         S = _SampleFactorsSimple(S,Svar, K, Qs)
 
         #Normalize states (except GDP)
-        keep = np.setdiff1d(np.arange(0,S.shape[1]), np.arange(0,S.shape[1],n))
-        S[:,keep] = (S[:,keep]-np.mean(S[:,keep], axis=0))/np.std(S[:,keep],axis=0)
-        #S[:,:] = (S[:,:]-np.mean(S[:,:], axis=0))/np.std(S[:,:],axis=0)
+        if GDPnorm:
+            S[:,:] = (S[:,:]-np.mean(S[:,:], axis=0))/np.std(S[:,:],axis=0)
+        else:
+            S[:,keep] = (S[:,keep]-np.mean(S[:,keep], axis=0))/np.std(S[:,keep],axis=0)
+
 
 
         draws = 1
@@ -600,7 +580,7 @@ def Gibbs_loop(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, In
                 
     return Hdraw, Qdraw, Fdraw, Pdraw, Rdraw, Sdraw 
 
-def Gibbs_loopMA(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, Ints, burn, save):
+def Gibbs_loopMA(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, Ints, burn, save, GDPnorm):
     # XY: Monthly data
     # F: State transition initial
     # H: Loadings initial mat
@@ -615,6 +595,7 @@ def Gibbs_loopMA(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, 
     # alpha0: scale param on factor loading variance:
     # L_var_prior: tightness on coefficient in factor loading (zero is prior)
     # Ints: Restrictions for loading on factors - number that load onto each
+    # GDPnorm: normalize GDP factor?
 
     # Create matrices to store results
     
@@ -638,7 +619,7 @@ def Gibbs_loopMA(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, 
     S_Y, S_X = _MakeLags(S[:,0:K+Qs], lags)
     phi0, alpha0, S0, beta0 = _setVARpriors(S_X,S_Y,lambda1, lambda3, lambda4, lags, alpha0)
     Phi = np.zeros((XY.shape[1]-Qs,1)) # Initialize MA coef at 0
-
+    keep = np.setdiff1d(np.arange(0,S.shape[1]), np.arange(0,S.shape[1],n))
     for ii in range(iter):
         if ii % 10==0:
             print('Completed ', str(ii/iter*100), "% of the loop")
@@ -647,13 +628,13 @@ def Gibbs_loopMA(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, 
         S, P  = _Kfilter(XYquas, F, H, Q, R, S)
         S, P, Svar = _Ksmoother(F, H, Q, R, S, P, lags, n)
         # Resample S with random shocks
-        #S = _SampleFactors(XYquas, F, H, Q, R, S, P, lags, n)
         S = _SampleFactorsSimple(S,Svar, K, Qs)
 
-        #Normalize states (except GDP)
-        keep = np.setdiff1d(np.arange(0,S.shape[1]), np.arange(0,S.shape[1],n))
-        S[:,keep] = (S[:,keep]-np.mean(S[:,keep], axis=0))/np.std(S[:,keep],axis=0)
-        #S[:,:] = (S[:,:]-np.mean(S[:,:], axis=0))/np.std(S[:,:],axis=0)
+        #Normalize states (except GDP if GDPnorm switched off)
+        if GDPnorm:
+            S[:,:] = (S[:,:]-np.mean(S[:,:], axis=0))/np.std(S[:,:],axis=0)
+        else:
+            S[:,keep] = (S[:,keep]-np.mean(S[:,keep], axis=0))/np.std(S[:,keep],axis=0)
 
 
         draws = 1
@@ -687,7 +668,7 @@ def Gibbs_loopMA(XY,F, H, Q, R, S, lags, lagsH, K, Qs, s0, alpha0, L_var_prior, 
 class DynamicFactorModel():
 
 
-    def __init__(self, Q_GDP, Monthly, Dates, K, Qs, lags, lagsH, MAterm):
+    def __init__(self, Q_GDP, Monthly, Dates, K, Qs, lags, lagsH, MAterm, normGDP):
         self.GDP = Q_GDP
         self.Monthly = Monthly
         self.Dates = Dates
@@ -696,6 +677,7 @@ class DynamicFactorModel():
         self.lags = lags
         self.lagsH = lagsH
         self.MAterm = MAterm
+        self.normGDP = normGDP
 
         
     def estimateGibbs(self, burn, save, s0 = 0.1, alpha0 = 1, L_var_prior = None):
@@ -703,17 +685,25 @@ class DynamicFactorModel():
             L_var_prior = np.identity((self.K+self.Qs)*self.lags)
         
         self.XY, H, R, F, Q, S, ints = initializevals(self.GDP, self.Monthly, self.lags, self.lagsH, self.K, self.Qs)
-        self.XYcomp = self.XY[0:self.GDP.shape[0]*3,:]
+        
+        if self.normGDP:
+            self.GDPmean = np.nanmean(self.GDP)
+            self.GDPstd = np.nanstd(self.GDP)
+            self.XY[0:,0] = (self.XY[0:,0] - self.GDPmean)/self.GDPstd
+        
+        XYcomp = self.XY[0:self.GDP.shape[0]*3,:].copy()
+        self.XYcomp = _RemoveOutliers(XYcomp, 4, 0)
         self.s0 = s0 # prior for var on loadings
         self.alpha0 = alpha0 # scale on var for loadings
         self.L_var_prior = L_var_prior # var on prior on loading betas (0 by default)
 
         if self.MAterm == 0:
             self.Hdraw, self.Qdraw, self.Fdraw, self.Pdraw, self.Rdraw, self.Sdraw  = Gibbs_loop(self.XYcomp,F, H, Q, R, S, self.lags, self.lagsH, self.K \
-                , self.Qs, s0, alpha0, L_var_prior, ints, burn, save)
+                , self.Qs, s0, alpha0, L_var_prior, ints, burn, save, self.normGDP)
             return self.Hdraw, self.Qdraw, self.Fdraw, self.Pdraw, self.Rdraw, self.Sdraw
         elif self.MAterm == 1:
-            self.Hdraw, self.Qdraw, self.Fdraw, self.Pdraw, self.Rdraw, self.Sdraw, self.Phidraw  = Gibbs_loopMA(self.XYcomp,F, H, Q, R, S, self.lags, self.lagsH, self.K, self.Qs, s0, alpha0, L_var_prior, ints, burn, save)
+            self.Hdraw, self.Qdraw, self.Fdraw, self.Pdraw, self.Rdraw, self.Sdraw, self.Phidraw  = Gibbs_loopMA(self.XYcomp,F, H, Q, R, S, self.lags, self.lagsH, self.K \
+                , self.Qs, s0, alpha0, L_var_prior, ints, burn, save, self.normGDP)
 
     def Nowcast(self, start, Horz):
         
@@ -750,8 +740,7 @@ class DynamicFactorModel():
         Findex = np.int(np.where(Dates==start)[0])
         Quartersback = (Dates.shape[0]-Findex)
         self.Quartersback = Quartersback
-        #Backfrom = Quartersback*3+Horz*3 # Forecasting is x quarters * 3 months from last GDP entry, plus horizon * 3 months from augmented XY matrix
-
+        
         Fcast_current = np.empty((Quartersback+1, 3)) # Store nowcast from each month for each quarter
         Fcast_next = np.empty((Quartersback+1, 3))
         Outturn_current = np.empty((Quartersback+1,3)) 
@@ -778,6 +767,14 @@ class DynamicFactorModel():
                 FeedNext = np.r_[Feed,np.nan*np.empty((3,Feed.shape[1]))]
                 S_fn, P_fn  = _Kfilter(FeedNext, Ffor, Hfor, Qfor, Rfor, PriorS)
                 Fcast_next[ii,jj] = np.mean(S_fn[3:,0])
+        
+        # Un-normalize if option has been used 
+        if self.normGDP:
+            Fcast_current = Fcast_current*self.GDPstd+self.GDPmean
+            Fcast_next = Fcast_next*self.GDPstd+self.GDPmean
+            Outturn_current = Outturn_current*self.GDPstd+self.GDPmean
+            Outturn_next = Outturn_next*self.GDPstd+self.GDPmean
+
         # Calculate RMSEs
         RMSE = np.empty((3,2))
         for ii in range(3):
