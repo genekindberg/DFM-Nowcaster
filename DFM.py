@@ -302,7 +302,8 @@ def _SampleLoadingsLags(S, XY, s0, alpha0, L_var_prior, lags, interv, Qs, K, lag
     cumsum = 0
     for ii in range(0,len(interv)):
         Beta.append( np.linalg.inv(S[0:XYnan.shape[0],Qs+ii:Qs+ii+(lagsH-1)*(Qs+K)+1:Qs+K].T @ S[0:XYnan.shape[0],Qs+ii:Qs+ii+(lagsH-1)*(Qs+K)+1:Qs+K]) @ (S[0:XYnan.shape[0],Qs+ii:Qs+ii+(lagsH-1)*(Qs+K)+1:Qs+K].T @ XYnan[:,Qs+cumsum:Qs+cumsum+interv[ii]]))
-    
+        cumsum = cumsum+Beta[ii-Qs].shape[1]
+
     Lf = np.zeros((N-Qs,K*lagsH+Qs*lagsH))
     # Add beta loading for each lag - add zeros for loading onto quarterly series
     for jj in range(0,lagsH):
